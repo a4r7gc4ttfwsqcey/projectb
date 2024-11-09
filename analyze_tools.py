@@ -52,30 +52,32 @@ async def calculate_metrics(repo_name: str, json_dict: dict[str, Any]) -> tuple[
     return ref_types_row, inter_ref_times_row, total_refs_row
 
 
-async def create_refactoring_results_table(tables_dir: Path, result: Path) -> bool:
+async def create_refactoring_results_table(sem: asyncio.Semaphore, tables_dir: Path, result: Path) -> bool:
     """Collect refactoringminer result into a table format."""
-    print(f"Analyze: {result!s}")
-    table_path = tables_dir.joinpath(result.with_suffix(".csv").name)
-    if table_path.exists():
-        print(f"Already analyzed, see table: {table_path!s}")
-        return False
-    refactorings = json.loads(result.read_text())
-    ref_types, inter_ref_times, total_refs = await calculate_metrics(result.with_suffix("").name, refactorings)
-    table_contents: dict[str, list[str]] = {
-        "Refactoring Type": ref_types,
-        "Average Time of the Inter-Refactoring period": inter_ref_times,
-        "Total Number of Refactorings": total_refs,
-    }
-    await write_table_to_csv(table_path, table_contents)
-    print(f"Analysis complete, saved resulting table: {table_path!s}")
-    return True
+    async with sem:
+        print(f"Analyze: {result!s}")
+        table_path = tables_dir.joinpath(result.with_suffix(".csv").name)
+        if table_path.exists():
+            print(f"Already analyzed, see table: {table_path!s}")
+            return False
+        refactorings = json.loads(result.read_text())
+        ref_types, inter_ref_times, total_refs = await calculate_metrics(result.with_suffix("").name, refactorings)
+        table_contents: dict[str, list[str]] = {
+            "Refactoring Type": ref_types,
+            "Average Time of the Inter-Refactoring period": inter_ref_times,
+            "Total Number of Refactorings": total_refs,
+        }
+        await write_table_to_csv(table_path, table_contents)
+        print(f"Analysis complete, saved resulting table: {table_path!s}")
+        return True
 
 
 async def create_refactoring_results_tables(result_paths: list[Path]) -> None:
     """Collect refactoringminer results into a table format."""
     tables_dir = results_dir.joinpath("refactoring-tables")
     tables_dir.mkdir(parents=True, exist_ok=True)
-    tasks = [create_refactoring_results_table(tables_dir, result) for result in result_paths]
+    sem = asyncio.Semaphore(16)
+    tasks = [create_refactoring_results_table(sem, tables_dir, result) for result in result_paths]
     await asyncio.gather(*tasks)
 
 
