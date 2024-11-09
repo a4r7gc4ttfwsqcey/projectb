@@ -7,7 +7,7 @@ def mine_refactoring_activity(project_repos: list[Path]) -> list[Path]:
     """Mine refactoring activity from the projects with RefactoringMiner."""
     rf_cmd = [str(rf_miner_exec)]
     print(f"RefactoringMiner executable: {rf_miner_exec!s}")
-    results = list[Path]
+    results: list[Path] = []
     result_dir = results_dir.joinpath("rminer-outputs")
     result_dir.mkdir(parents=True, exist_ok=True)
     logs_dir = results_dir.joinpath("rminer-logs")
