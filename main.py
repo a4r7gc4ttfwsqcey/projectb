@@ -3,7 +3,7 @@ from git_tools import clone_repositories, projects_to_git_urls
 from subprocess_tools import run_subprocess
 from constants import *
 from csv_tools import parse_projects_from_csv
-from mining_tools import mine_refactoring_activity
+from mining_tools import mine_diffs, mine_refactoring_activity, mine_effort
 from analyze_tools import create_refactoring_results_tables
 
 def build_refactoringminer() -> None:
@@ -47,9 +47,9 @@ def main() -> None:
     cloned_repos = clone_repositories(git_urls, git_clones_dir)
     mining_results = mine_refactoring_activity(cloned_repos)
     create_refactoring_results_tables(mining_results)
-    # collect diffs into json
-    # collect effort
-    # mine bug fixes
+    mine_diffs(cloned_repos)
+    mine_effort(cloned_repos)
+    mine_bugfixes(git_urls)
 
 
 if __name__ == "__main__":

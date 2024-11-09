@@ -1,9 +1,11 @@
 from pathlib import Path
 
+from git import Repo
+
 from constants import *
 from subprocess_tools import run_subprocess
 
-def mine_refactoring_activity(project_repos: list[Path]) -> list[Path]:
+def mine_refactoring_activity(project_repos: list[Repo]) -> list[Path]:
     """Mine refactoring activity from the projects with RefactoringMiner."""
     rf_cmd = [str(rf_miner_exec)]
     print(f"RefactoringMiner executable: {rf_miner_exec!s}")
@@ -28,3 +30,15 @@ def mine_refactoring_activity(project_repos: list[Path]) -> list[Path]:
             continue
         print(f"Repository already mined: {json_output_path!s}")
     return results
+
+
+def mine_diffs(project_repos: list[Repo]):
+    """Mine diffs with pydriller."""
+
+
+def mine_effort(project_repos: list[Repo]):
+    """Mine effort with scc"""
+
+
+def mine_bugfixes(git_urls: list[str]):
+    """Mine bug fixes"""
