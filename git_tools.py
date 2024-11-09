@@ -3,7 +3,7 @@ from pathlib import Path
 from git import Repo
 from constants import *
 
-def projects_to_git_urls(projects: set[str]) -> set[str]:
+async def projects_to_git_urls(projects: set[str]) -> set[str]:
     """Transform apache project names to GitHub repository links."""
     project_urls: str[str] = set()
     for p in projects:
@@ -23,7 +23,7 @@ def projects_to_git_urls(projects: set[str]) -> set[str]:
     return project_urls
 
 
-def clone_repositories(repository_urls: list[str], directory: Path) -> list[Repo]:
+async def clone_repositories(repository_urls: list[str], directory: Path) -> list[Repo]:
     """Clone the list of repository links into subdirs in the chosen directory.
 
     If the project is already cloned, skip it.
@@ -41,7 +41,7 @@ def clone_repositories(repository_urls: list[str], directory: Path) -> list[Repo
     return repos
 
 
-def get_commit_timestamp(repo_name: str, commit_sha1: str) -> datetime:
+async def get_commit_timestamp(repo_name: str, commit_sha1: str) -> datetime:
     repo_path = git_clones_dir / repo_name
     repository = Repo(repo_path)
     commit = repository.commit(commit_sha1)

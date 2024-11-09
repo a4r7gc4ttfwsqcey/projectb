@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime
 import json
 from typing import Any
@@ -7,12 +8,12 @@ from subprocess_tools import run_subprocess
 from git_tools import get_commit_timestamp
 
 
-def calculate_inter_ref_period(timestamp: datetime, prev_timestamp: datetime):
+async def calculate_inter_ref_period(timestamp: datetime, prev_timestamp: datetime) -> float:
     time_diff = (prev_timestamp - timestamp).total_seconds()
     return time_diff
 
 
-def calculate_metrics(repo_name: str, json_dict: dict[str, Any]) -> tuple[list[str], list[str], list[str]]:
+async def calculate_metrics(repo_name: str, json_dict: dict[str, Any]) -> tuple[list[str], list[str], list[str]]:
     """Perform analysis on the json dictionary object."""
     ref_types: set[str] = set()
     inter_ref_times: dict[str, list[str]] = {}
@@ -28,9 +29,9 @@ def calculate_metrics(repo_name: str, json_dict: dict[str, Any]) -> tuple[list[s
             ref_types.add(ref_type)
             if commit_timestamp:
                 prev_timestamp = commit_timestamp
-            commit_timestamp = get_commit_timestamp(repo_name, commit.get("sha1"))
+            commit_timestamp = await get_commit_timestamp(repo_name, commit.get("sha1"))
             if prev_timestamp:
-                time_diff = calculate_inter_ref_period(commit_timestamp, prev_timestamp)
+                time_diff = await calculate_inter_ref_period(commit_timestamp, prev_timestamp)
             else:
                 time_diff: float = 0.0
             if inter_ref_times.get(ref_type) is None:
@@ -51,28 +52,34 @@ def calculate_metrics(repo_name: str, json_dict: dict[str, Any]) -> tuple[list[s
     return ref_types_row, inter_ref_times_row, total_refs_row
 
 
-def create_refactoring_results_tables(result_paths: list[Path]) -> None:
+async def create_refactoring_results_table(tables_dir: Path, result: Path) -> bool:
+    """Collect refactoringminer result into a table format."""
+    print(f"Analyze: {result!s}")
+    table_path = tables_dir.joinpath(result.with_suffix(".csv").name)
+    if table_path.exists():
+        print(f"Already analyzed, see table: {table_path!s}")
+        return False
+    refactorings = json.loads(result.read_text())
+    ref_types, inter_ref_times, total_refs = await calculate_metrics(result.with_suffix("").name, refactorings)
+    table_contents: dict[str, list[str]] = {
+        "Refactoring Type": ref_types,
+        "Average Time of the Inter-Refactoring period": inter_ref_times,
+        "Total Number of Refactorings": total_refs,
+    }
+    await write_table_to_csv(table_path, table_contents)
+    print(f"Analysis complete, saved resulting table: {table_path!s}")
+    return True
+
+
+async def create_refactoring_results_tables(result_paths: list[Path]) -> None:
     """Collect refactoringminer results into a table format."""
     tables_dir = results_dir.joinpath("refactoring-tables")
     tables_dir.mkdir(parents=True, exist_ok=True)
-    for result in result_paths:
-        print(f"Analyze: {result!s}")
-        table_path = tables_dir.joinpath(result.with_suffix(".csv").name)
-        if table_path.exists():
-            print(f"Already analyzed, see table: {table_path!s}")
-            continue
-        refactorings = json.loads(result.read_text())
-        ref_types, inter_ref_times, total_refs = calculate_metrics(result.with_suffix("").name, refactorings)
-        table_contents: dict[str, list[str]] = {
-            "Refactoring Type": ref_types,
-            "Average Time of the Inter-Refactoring period": inter_ref_times,
-            "Total Number of Refactorings": total_refs,
-        }
-        write_table_to_csv(table_path, table_contents)
-        print(f"Analysis complete, saved resulting table: {table_path!s}")
+    tasks = [create_refactoring_results_table(tables_dir, result) for result in result_paths]
+    await asyncio.gather(*tasks)
 
 
-def get_refactoring_commits(json_file: Path) -> list[str]:
+async def get_refactoring_commits(json_file: Path) -> list[str]:
     refactorings = json.loads(json_file.read_text())
     refactor_commit_shas: list[str] = []
     for commit in refactorings.get("commits", []):
