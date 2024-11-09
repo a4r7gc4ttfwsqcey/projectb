@@ -1,4 +1,4 @@
-from git_tools import clone_repositories
+from git_tools import clone_repositories, projects_to_git_urls
 from subprocess_tools import run_subprocess
 from constants import *
 from csv_tools import parse_projects_from_csv
@@ -14,8 +14,8 @@ def setup_tools() -> None:
 def main() -> None:
     setup_tools()
     projects = parse_projects_from_csv(input_csv)
-    # gather repositories from csv
-    # clone_repositories()
+    git_urls = projects_to_git_urls(projects)
+    clone_repositories(git_urls, git_clones_dir)
     # mine refactoring activity
     # collect diffs into json
     # collect effort
