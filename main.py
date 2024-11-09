@@ -1,3 +1,4 @@
+import platform
 from git_tools import clone_repositories, projects_to_git_urls
 from subprocess_tools import run_subprocess
 from constants import *
@@ -10,10 +11,19 @@ def build_refactoringminer() -> None:
     run_subprocess([str(gradle_exec), "distZip"], cwd=rf_miner_dir)
 
 
+def unzip_refactoringminer_dist() -> None:
+    """Unpack build refactoringminer zip archive."""
+    if platform.system() == "Windows":
+        run_subprocess(["powershell.exe", "-Command", f'Expand-Archive -Path {rf_miner_dist_path} -DestinationPath {rf_miner_dist_path.parent}'])
+    else:
+        run_subprocess(["unzip", str(rf_miner_dist_path), "-d", str(rf_miner_dist_path.parent)])
+
+
 def setup_tools() -> None:
     """Set up the required mining tools."""
-    if not rf_miner_dir.joinpath("build").exists():
+    if not rf_miner_dist_path.exists():
         build_refactoringminer()
+        unzip_refactoringminer_dist()
         return
     print(f"RefactoringMiner already built: {rf_miner_dir!s}")
 
