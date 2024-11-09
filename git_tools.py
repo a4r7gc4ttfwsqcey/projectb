@@ -12,8 +12,17 @@ def projects_to_git_urls(projects: set[str]) -> set[str]:
 
 
 def clone_repositories(repository_urls: list[str], directory: Path) -> list[Repo]:
-    """Clone the list of repository links into the chosen directory."""
-    repos = list[Repo]
+    """Clone the list of repository links into subdirs in the chosen directory.
+
+    If the project is already cloned, skip it.
+    """
+    repos: list[Repo] = []
+    directory.mkdir(exist_ok=True, parents=True)
     for url in repository_urls:
-        repos.append(Repo.clone_from(url, directory))
+        subdir = directory / Path(url).with_suffix("").name
+        print(f"Clone repository from {url} to {subdir}")
+        if not subdir.exists():
+            repos.append(Repo.clone_from(url, subdir))
+            continue    
+        print(f"Skipping, repository already cloned into {subdir}")
     return repos

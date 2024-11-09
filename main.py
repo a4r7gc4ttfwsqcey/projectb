@@ -1,3 +1,4 @@
+import shutil
 from git_tools import clone_repositories, projects_to_git_urls
 from subprocess_tools import run_subprocess
 from constants import *
