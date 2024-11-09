@@ -1,6 +1,5 @@
 from datetime import datetime
 from pathlib import Path
-from pydriller import Repository
 from git import Repo
 from constants import *
 
