@@ -35,7 +35,7 @@ def setup_tools() -> None:
         build_refactoringminer()
         unzip_refactoringminer_dist()
         return
-    print(f"RefactoringMiner already built: {rf_miner_dir!s}")
+    print(f"RefactoringMiner already built: {rf_miner_dist_path!s}")
 
 
 def main() -> None:

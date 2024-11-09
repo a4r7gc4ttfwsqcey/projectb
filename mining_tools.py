@@ -17,10 +17,11 @@ def mine_refactoring_activity(project_repos: list[Path]) -> None:
         result_dir.mkdir(parents=True, exist_ok=True)
         json_output_path = result_dir.joinpath(project_path.with_suffix(".json").name)
         if not json_output_path.exists():
-            # CLI option -a for analysing all commits
-            mine_args = rf_cmd + ["-a", str(project_path)]
-            json_output = run_subprocess(mine_args, cwd=rf_miner_dir, log_path=log_path)
-            json_output_path.write_text(json_output)
-            print(f"Mining results saved to {json_output_path!s}")
+            # CLI options:
+            # -a for analysing all commits
+            # -json for output path
+            mine_args = rf_cmd + ["-a", str(project_path), "-json", str(json_output_path)]
+            run_subprocess(mine_args, cwd=rf_miner_dir, log_path=log_path)
+            print(f"Mining completed, results path: {json_output_path!s}")
             continue
         print(f"Repository already mined: {json_output_path!s}")
