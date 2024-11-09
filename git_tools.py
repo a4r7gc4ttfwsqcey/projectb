@@ -23,6 +23,7 @@ def clone_repositories(repository_urls: list[str], directory: Path) -> list[Repo
         print(f"Clone repository from {url} to {subdir}")
         if not subdir.exists():
             repos.append(Repo.clone_from(url, subdir))
-            continue    
+            continue
         print(f"Skipping, repository already cloned into {subdir}")
+        repos.append(Repo(subdir))
     return repos
