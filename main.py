@@ -4,6 +4,7 @@ from subprocess_tools import run_subprocess
 from constants import *
 from csv_tools import parse_projects_from_csv
 from mining_tools import mine_refactoring_activity
+from analyze_tools import create_refactoring_results_tables
 
 def build_refactoringminer() -> None:
     """Build refactoringminer from source with Gradle."""
@@ -44,7 +45,8 @@ def main() -> None:
     projects = parse_projects_from_csv(input_csv)
     git_urls = projects_to_git_urls(projects)
     cloned_repos = clone_repositories(git_urls, git_clones_dir)
-    mine_refactoring_activity(cloned_repos)
+    mining_results = mine_refactoring_activity(cloned_repos)
+    create_refactoring_results_tables(mining_results)
     # collect diffs into json
     # collect effort
     # mine bug fixes
