@@ -8,15 +8,25 @@ from mining_tools import mine_refactoring_activity
 def build_refactoringminer() -> None:
     """Build refactoringminer from source with Gradle."""
     print(f"Build RefactoringMiner (source: {rf_miner_dir!s}) with Gradle (path: {gradle_dir!s})")
-    run_subprocess([str(gradle_exec), "distZip"], cwd=rf_miner_dir)
+    logs_dir = results_dir.joinpath("gradle-logs")
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    log_path = logs_dir.joinpath("gradle.txt")
+    run_subprocess([str(gradle_exec), "distZip"], cwd=rf_miner_dir, log_path=log_path)
 
 
 def unzip_refactoringminer_dist() -> None:
     """Unpack build refactoringminer zip archive."""
+    logs_dir = results_dir.joinpath("unzip-logs")
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    log_path = logs_dir.joinpath("unzip.txt")
     if platform.system() == "Windows":
-        run_subprocess(["powershell.exe", "-Command", f'Expand-Archive -Path {rf_miner_dist_path} -DestinationPath {rf_miner_dist_path.parent}'])
+        run_subprocess(
+            ["powershell.exe", "-Command", f'Expand-Archive -Path {rf_miner_dist_path} -DestinationPath {rf_miner_dist_path.parent}'],
+            log_path=log_path)
     else:
-        run_subprocess(["unzip", str(rf_miner_dist_path), "-d", str(rf_miner_dist_path.parent)])
+        run_subprocess(
+            ["unzip", str(rf_miner_dist_path), "-d", str(rf_miner_dist_path.parent)], log_path=log_path
+        )
 
 
 def setup_tools() -> None:

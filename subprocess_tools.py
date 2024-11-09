@@ -18,5 +18,14 @@ def get_project_env():
     return env
 
 
-def run_subprocess(args: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
+def run_subprocess(
+    args: list[str], cwd: Path | None = None, log_path: Path | None = None
+) -> subprocess.CompletedProcess[str]:
+    print(f"Run subprocess: '{" ".join(args)}' Cwd: '{cwd}' Log path: '{log_path}'")
+    if log_path:
+        with log_path.open("w", encoding="utf-8") as log_file:
+            return subprocess.run(
+                args, cwd=cwd, env=get_project_env(), check=True, text=True,
+                stdout=log_file, stderr=log_file
+            )
     return subprocess.run(args, cwd=cwd, env=get_project_env(), check=True, text=True)
