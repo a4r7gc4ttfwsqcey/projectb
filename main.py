@@ -15,7 +15,7 @@ def setup_tools() -> None:
     if not rf_miner_dir.joinpath("build").exists():
         build_refactoringminer()
         return
-    print(f"RefactoringMiner already built: {rf_miner_jar!s}")
+    print(f"RefactoringMiner already built: {rf_miner_dir!s}")
 
 
 def main() -> None:
