@@ -62,19 +62,20 @@ def mine_diffs(project_repos: list[Repo]):
             }
             commit_data["diff_content"] = []
             for file in commit.modified_files:
-                commit_data["diff_stats"]["files"].append(
-                    {
-                    "file": file.filename,
-                    "add_count": file.added_lines,
-                    "del_count": file.deleted_lines,
-                    },
-                ),
-                commit_data["diff_content"].append(
-                    {
+                if file.added_lines != 0 or file.deleted_lines != 0:
+                    commit_data["diff_stats"]["files"].append(
+                        {
                         "file": file.filename,
-                        "diff": file.diff,
-                    }
-                )
+                        "add_count": file.added_lines,
+                        "del_count": file.deleted_lines,
+                        },
+                    ),
+                    commit_data["diff_content"].append(
+                        {
+                            "file": file.filename,
+                            "diff": file.diff,
+                        }
+                    )
             commits.append(commit_data)
         diff_result_json.write_text(json.dumps(commits, indent=4))
         print(f"Repo diff mining complete: {diff_result_json!s}")
