@@ -2,9 +2,10 @@ import json
 from pathlib import Path
 from typing import Any
 
-from git import Repo
+from git import Commit, Repo
 from pydriller import Repository
 
+from analyze_tools import get_refactoring_commits
 from constants import *
 from subprocess_tools import run_subprocess
 
@@ -51,7 +52,7 @@ def mine_diffs(project_repos: list[Repo]):
             commit_data: dict[str, str | list[Any], dict[str, int | list[dict[str, int | str]]]] = {}
             commit_data["commit_hash"] = commit.hash
             try:
-                commit_data["previous_commit_hash"] = commit.parents.pop()
+                commit_data["previous_commit_hash"] = commit.parents[0]
             except Exception:
                 print(f"No parent for {commit.hash}")
             commit_data["diff_stats"] = {
@@ -75,16 +76,58 @@ def mine_diffs(project_repos: list[Repo]):
                     }
                 )
             commits.append(commit_data)
-        diff_result_json.write_text(json.dumps(commits))
+        diff_result_json.write_text(json.dumps(commits, indent=4))
         print(f"Repo diff mining complete: {diff_result_json!s}")
+
+
+def get_commit_loc(repo: Repo, commit: Commit) -> int:
+    """Get loc for commit from scc"""
+    current_branch = repo.active_branch.name
+    repo.git.checkout(commit)
+    proc = run_subprocess([str(scc_exec), "--no-complexity", "--no-cocomo"], quiet=True)
+    output = proc.stdout or ""
+    total_loc: int = 0
+    for line in output.splitlines():
+        parts = line.split()
+        if len(parts) >= 3:
+            language = parts[0]
+            if language in TIOBE_PROGRAMMING_LANGUAGES_FOR_SCC:
+                loc = int(parts[2].replace(",", ""))
+                total_loc += loc
+    repo.git.checkout(current_branch)
+    return total_loc
 
 
 def mine_effort(project_repos: list[Repo]):
     """Mine effort with scc"""
     for repo in project_repos:
-        repository = Repository(repo.working_dir)
-        for commit in repository.traverse_commits():
-            pass
+        developer_tloc: dict[str, int] = {}
+        ref_commit_tloc: dict[str, int] = {}
+        print(f"Mine effort TLOC: {repo!s}")
+        tloc_result_dir = results_dir.joinpath("tloc-outputs")
+        tloc_result_dir.mkdir(parents=True, exist_ok=True)
+        json_fn = Path(repo.working_dir).with_suffix(".json").name
+        tloc_result_json = tloc_result_dir.joinpath(json_fn)
+        if tloc_result_json.exists():
+            print(f"Repo diff already mined: {tloc_result_json!s}")
+            continue
+        refactoringminer_json = results_dir.joinpath("rminer-outputs", json_fn)
+        for commit_sha in get_refactoring_commits(refactoringminer_json):
+            developer = repo.commit(commit_sha).author
+            if developer not in developer_tloc:
+                developer_tloc[developer] = 0
+            loc = get_commit_loc(repo, repo.commit(commit_sha))
+            try:
+                previous_commit = repo.commit(commit_sha).parents[0]
+                prev_commit_loc = get_commit_loc(repo, previous_commit)
+            except Exception:
+                print(f"no previous commit for {commit_sha}")
+                continue
+            tloc = abs(loc - prev_commit_loc)
+            developer_tloc[developer] += tloc
+            ref_commit_tloc[commit_sha] = tloc
+        tloc_result_json.write_text(json.dumps({"developers": developer_tloc, "refactor_commits": ref_commit_tloc}, indent=4))
+        print(f"Effort TLOC mined: {tloc_result_json!s}")
 
 
 def mine_bugfixes(git_urls: list[str]):

@@ -3,7 +3,7 @@ from git_tools import clone_repositories, projects_to_git_urls
 from subprocess_tools import run_subprocess
 from constants import *
 from csv_tools import parse_projects_from_csv
-from mining_tools import mine_diffs, mine_refactoring_activity, mine_effort
+from mining_tools import mine_diffs, mine_refactoring_activity, mine_effort, mine_bugfixes
 from analyze_tools import create_refactoring_results_tables
 
 def build_refactoringminer() -> None:

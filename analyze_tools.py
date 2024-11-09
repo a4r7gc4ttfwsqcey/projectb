@@ -70,3 +70,12 @@ def create_refactoring_results_tables(result_paths: list[Path]) -> None:
         }
         write_table_to_csv(table_path, table_contents)
         print(f"Analysis complete, saved resulting table: {table_path!s}")
+
+
+def get_refactoring_commits(json_file: Path) -> list[str]:
+    refactorings = json.loads(json_file.read_text())
+    refactor_commit_shas: list[str] = []
+    for commit in refactorings.get("commits", []):
+        if commit.get("refactorings", []):
+            refactor_commit_shas.append(commit.get("sha1"))
+    return refactor_commit_shas
