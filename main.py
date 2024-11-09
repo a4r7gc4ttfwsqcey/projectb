@@ -25,7 +25,6 @@ def main() -> None:
     git_urls = projects_to_git_urls(projects)
     cloned_repos = clone_repositories(git_urls, git_clones_dir)
     mine_refactoring_activity(cloned_repos)
-    # mine refactoring activity
     # collect diffs into json
     # collect effort
     # mine bug fixes
