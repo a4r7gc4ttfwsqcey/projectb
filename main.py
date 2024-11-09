@@ -6,12 +6,16 @@ from csv_tools import parse_projects_from_csv
 
 def build_refactoringminer() -> None:
     """Build refactoringminer from source with Gradle."""
+    print(f"Build RefactoringMiner (source: {rf_miner_dir!s}) with Gradle (path: {gradle_dir!s})")
     run_subprocess([str(gradle_exec), "jar"], cwd=rf_miner_dir)
 
 
 def setup_tools() -> None:
     """Set up the required mining tools."""
-    build_refactoringminer()
+    if not rf_miner_jar.exists():
+        build_refactoringminer()
+        return
+    print(f"RefactoringMiner already built: {rf_miner_jar!s}")
 
 
 def main() -> None:
