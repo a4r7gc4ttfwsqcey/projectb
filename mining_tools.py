@@ -101,8 +101,7 @@ async def get_commit_loc(repo: Repo, commit: Commit) -> int:
     """Get loc for commit from scc"""
     current_branch = repo.active_branch.name
     repo.git.checkout(commit)
-    proc = await run_subprocess([str(scc_exec), "--no-complexity", "--no-cocomo"], quiet=True)
-    output = proc.stdout or ""
+    output = await run_subprocess([str(scc_exec), "--no-complexity", "--no-cocomo"], quiet=True)
     total_loc: int = 0
     for line in output.splitlines():
         parts = line.split()

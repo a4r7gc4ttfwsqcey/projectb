@@ -6,6 +6,7 @@ name = "pypi"
 [packages]
 gitpython = "==3.1.43"
 pydriller = "==2.7"
+aiofiles = "*"
 
 [dev-packages]
 

@@ -1,7 +1,9 @@
+import asyncio
+from asyncio.subprocess import PIPE, STDOUT
 import os
 import subprocess
 from constants import *
-
+import aiofiles
 
 async def get_project_env() -> dict[str, str]:
     env: dict[str, str] = os.environ.copy()
@@ -20,13 +22,18 @@ async def get_project_env() -> dict[str, str]:
 
 async def run_subprocess(
     args: list[str], cwd: Path | None = None, log_path: Path | None = None, quiet: bool = False
-) -> subprocess.CompletedProcess[str]:
+) -> str:
     if not quiet:
         print(f"Run subprocess: '{" ".join(args)}' Cwd: '{cwd}' Log path: '{log_path}'")
     if log_path:
-        with log_path.open("w", encoding="utf-8") as log_file:
-            return subprocess.run(
-                args, cwd=cwd, env=await get_project_env(), check=True, text=True,
+        async with aiofiles.open(log_path, "w", encoding="utf-8") as log_file:
+            proc = await asyncio.create_subprocess_exec(
+                *args, cwd=cwd, env=await get_project_env(),
                 stdout=log_file, stderr=log_file
             )
-    return subprocess.run(args, cwd=cwd, env=get_project_env(), check=True, text=True, capture_output=True)
+            return await proc.communicate()
+    proc = await asyncio.create_subprocess_exec(*args, cwd=cwd, env=await get_project_env(), stdout=PIPE, stderr=STDOUT)
+    stdout, _ = await proc.communicate()
+    if stdout:
+        return stdout.decode("utf-8")
+    return ""
