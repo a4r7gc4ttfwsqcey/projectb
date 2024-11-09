@@ -8,6 +8,9 @@ tools_dir = project_root_dir / "tools"
 git_clones_dir = project_root_dir / "git_clones"
 results_dir = project_root_dir / "results"
 
+# Set input csv path containing the projects
+input_csv = project_root_dir / "sonar_measures.csv"
+
 # graalvm jdk 23
 # https://www.graalvm.org/
 # Set JAVA_HOME directory
