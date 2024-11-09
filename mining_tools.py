@@ -3,19 +3,21 @@ from pathlib import Path
 from constants import *
 from subprocess_tools import run_subprocess
 
-def mine_refactoring_activity(project_repos: list[Path]) -> None:
+def mine_refactoring_activity(project_repos: list[Path]) -> list[Path]:
     """Mine refactoring activity from the projects with RefactoringMiner."""
     rf_cmd = [str(rf_miner_exec)]
     print(f"RefactoringMiner executable: {rf_miner_exec!s}")
+    results = list[Path]
+    result_dir = results_dir.joinpath("rminer-outputs")
+    result_dir.mkdir(parents=True, exist_ok=True)
+    logs_dir = results_dir.joinpath("rminer-logs")
+    logs_dir.mkdir(parents=True, exist_ok=True)
     for project_repo in project_repos:
         print(f"Mine project repository: {project_repo!s}")
         project_path = Path(project_repo.working_dir)
-        logs_dir = results_dir.joinpath("rminer-logs")
-        logs_dir.mkdir(parents=True, exist_ok=True)
         log_path = logs_dir.joinpath(project_path.with_suffix(".txt").name)
-        result_dir = results_dir.joinpath("rminer-outputs")
-        result_dir.mkdir(parents=True, exist_ok=True)
         json_output_path = result_dir.joinpath(project_path.with_suffix(".json").name)
+        results.append(json_output_path)
         if not json_output_path.exists():
             # CLI options:
             # -a for analysing all commits
@@ -25,3 +27,4 @@ def mine_refactoring_activity(project_repos: list[Path]) -> None:
             print(f"Mining completed, results path: {json_output_path!s}")
             continue
         print(f"Repository already mined: {json_output_path!s}")
+    return results
