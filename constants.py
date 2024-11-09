@@ -19,9 +19,9 @@ java_exec = java_home_dir / "bin" / "java.exe"
 
 # refactoringminer 3.0.9 source
 # https://github.com/tsantalis/RefactoringMiner/archive/refs/tags/3.0.9.zip
-# Set RefactoringMiner source dir
+# Set RefactoringMiner source dir and executable/script path
 rf_miner_dir = tools_dir / "rfm"
-rf_miner_jar = rf_miner_dir / "build" / "libs" / "RefactoringMiner-3.0.9.jar"
+rf_miner_exec = rf_miner_dir / "build" / "scripts" / "RefactoringMiner.bat"
 
 # gradle 8.10.2
 # https://services.gradle.org/distributions/gradle-8.10.2-all.zip
