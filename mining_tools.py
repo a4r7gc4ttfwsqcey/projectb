@@ -127,7 +127,10 @@ async def mine_effort_for_repo(sem: asyncio.Semaphore, tloc_result_dir: Path, re
             return False
         refactoringminer_json = results_dir.joinpath("rminer-outputs", json_fn)
         for commit_sha in await get_refactoring_commits(refactoringminer_json):
-            developer = repo.commit(commit_sha).author
+            developer = repo.commit(commit_sha).author.name
+            if not developer:
+                print(f"Empty developer name")
+                developer = "Unknown"
             if developer not in developer_tloc:
                 developer_tloc[developer] = 0
             loc = await get_commit_loc(repo, repo.commit(commit_sha))
