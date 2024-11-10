@@ -2,6 +2,9 @@
 
 from pathlib import Path
 
+# Set GitHub API key
+github_api_key = Path("GITHUB_API_KEY").read_text().strip()
+
 # Set directories
 project_root_dir = Path(__file__).resolve().parent
 tools_dir = project_root_dir / "tools"

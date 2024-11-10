@@ -3,13 +3,13 @@ import json
 from pathlib import Path
 from typing import Any
 
+import aiohttp
 from git import Commit, Repo
 from pydriller import Repository
 
 from analyze_tools import get_refactoring_commits
 from constants import *
 from subprocess_tools import run_subprocess
-
 
 async def mine_repo_rf_activity(sem: asyncio.Semaphore, result_dir: Path, logs_dir: Path, project_repo: Repo) -> Path:
     async with sem:
@@ -164,6 +164,102 @@ async def mine_effort(project_repos: list[Repo]) -> bool:
     return True
 
 
-def mine_bugfixes(git_urls: list[str]) -> bool:
-    """Mine bug fixes"""
+async def uses_github_issue_tracker_system(session: aiohttp.ClientSession, git_url: str) -> bool:
+    """Return whether a project at URL uses GitHub ITS."""
+    git_url = git_url.rsplit(".git")[0]
+    parts = git_url.rstrip('/').split('/')
+    owner, repo = parts[-2], parts[-1]
+    repo_metadata_endpoint = f"https://api.github.com/repos/{owner}/{repo}"
+    token = github_api_key
+    headers = {"Authorization": f"token {token}"} if token else {}
+    print(f"Request {repo_metadata_endpoint}")
+    async with session.get(repo_metadata_endpoint, headers=headers) as response:
+        if response.status == 200:
+            data = await response.json()
+            return data.get("has_issues", False) in ("true", True)
+        if response.status in (403, 429):
+            await asyncio.sleep(3601)  # sleep 1 hour on rate limit
+            return await uses_github_issue_tracker_system(session, git_url)
+        raise Exception(f"unable to determine github repo issue system, http error {response.status}")
+
+
+async def mine_from_github(session: aiohttp.ClientSession, result_dir: Path, git_url: str) -> bool:
+    """Mine bug fixes from GitHub."""
+    json_fn = Path(git_url).with_suffix(".json").name
+    result_json = result_dir.joinpath(json_fn)
+    git_url = git_url.rsplit(".git")[0]
+    parts = git_url.rstrip('/').split('/')
+    owner, repo = parts[-2], parts[-1]
+    issue_metadata_endpoint = f"https://api.github.com/repos/{owner}/{repo}/issues"
+    token = github_api_key
+    headers = {"Authorization": f"token {token}"} if token else {}
+    print(f"Request {issue_metadata_endpoint}")
+    page = 0
+    json_data: list[dict[str, Any]] = []
+    while True:
+        params = {
+            "per_page": "100",
+            "page": page
+        }
+        
+        async with session.get(issue_metadata_endpoint, headers=headers, params=params) as response:
+            if response.status == 200:
+                if page == 0:
+                    json_data = await response.json()
+                else:
+                    json_data.extend(await response.json())
+                if "Link" not in response.headers:
+                    break
+                links = response.headers['Link'].split(',')
+                if any(['rel="next"' in link for link in links]):
+                    page += 1
+                else:
+                    break
+            elif response.status in (403, 429):
+                await asyncio.sleep(3601)  # sleep 1 hour on rate limit
+                return await mine_from_github(session, result_dir, git_url)
+            else:
+                raise Exception(f"unable to fetch issues from github, http error {response.status}")
+    result_json.write_text(json.dumps(json_data, indent=4))
+    return True
+
+
+async def mine_from_jira(session: aiohttp.ClientSession, result_dir: Path, git_url: str) -> bool:
+    """Mine bug fixes from Jira."""
+    json_fn = Path(git_url).with_suffix(".json").name
+    result_json = result_dir.joinpath(json_fn)
+    return True
+
+
+async def mine_bugfixes_for_repo(
+    sem: asyncio.Semaphore, gh_result_dir: Path, jira_result_dir: Path, git_url: str
+) -> bool:
+    """Mine bug fixes."""
+    async with sem:
+        json_fn = Path(git_url).with_suffix(".json").name
+        if gh_result_dir.joinpath(json_fn).exists() or jira_result_dir.joinpath(json_fn).exists():
+            print(f"Repo already mined: {json_fn.rsplit(".", maxsplit=1)[0]!s}")
+            return False
+        async with aiohttp.ClientSession() as session:
+            if await uses_github_issue_tracker_system(session, git_url):
+                print(f"Mine repo bugfixes (Github): {git_url!s}")
+                await mine_from_github(session, gh_result_dir, git_url)
+            else:
+                print(f"Mine repo bugfixes (Jira): {git_url!s}")
+                await mine_from_jira(session, jira_result_dir, git_url)
+        return True
+
+
+async def mine_bugfixes(git_urls: list[str]) -> bool:
+    """Mine bug fixes."""
+    gh_result_dir = results_dir.joinpath("bugfixes-github")
+    jira_result_dir = results_dir.joinpath("bugfixes-jira")
+    for directory in gh_result_dir, jira_result_dir:
+        directory.mkdir(parents=True, exist_ok=True)
+    sem = asyncio.Semaphore(10)
+    tasks = [
+        mine_bugfixes_for_repo(sem, gh_result_dir, jira_result_dir, git_url)
+        for git_url in git_urls
+    ]
+    await asyncio.gather(*tasks)
     return True

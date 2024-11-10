@@ -4,3 +4,4 @@ __pycache__
 git_clones/
 results/
 *.pdf
+GITHUB_API_KEY
