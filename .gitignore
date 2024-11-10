@@ -3,3 +3,4 @@ tools/
 __pycache__
 git_clones/
 results/
+*.pdf
