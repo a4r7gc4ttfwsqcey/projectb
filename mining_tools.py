@@ -162,7 +162,7 @@ async def mine_effort_for_repo(sem: asyncio.Semaphore, tloc_result_dir: Path, re
             developer_dict[developer]["TLOC"].append(tloc)
         for dev in developer_dict:
             tloc_result_csv = tloc_result_dir.joinpath(dev).with_suffix(".csv")
-            write_table_to_csv(tloc_result_csv, developer_dict[dev])
+            await write_table_to_csv(tloc_result_csv, developer_dict[dev])
         print(f"Effort TLOC mined: {tloc_result_dir!s}")
         return True
 
