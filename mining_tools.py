@@ -230,7 +230,7 @@ async def mine_from_github(session: aiohttp.ClientSession, result_dir: Path, git
     return True
 
 
-async def mine_from_jira(session: aiohttp.ClientSession, result_dir: Path, git_url: str, key: str) -> bool:
+async def mine_from_jira(result_dir: Path, git_url: str, key: str) -> bool:
     """Mine bug fixes from Jira."""
     txt_fn = Path(git_url).with_suffix(".txt").name
     result_txt = result_dir.joinpath(txt_fn)
@@ -255,8 +255,6 @@ async def mine_from_jira(session: aiohttp.ClientSession, result_dir: Path, git_u
 
 async def mine_from_bugzilla(result_dir: Path, git_url: str) -> bool:
     """Mine bug fixes from Bugzilla."""
-    """https://bz.apache.org/bugzilla/describecomponents.cgi?product=Ant
-    https://bz.apache.org/bugzilla/describecomponents.cgi?product=POI"""
     json_fn = Path(git_url).with_suffix(".json").name
     result_json = result_dir.joinpath(json_fn)
     if result_json.exists():
@@ -333,10 +331,10 @@ async def mine_bugfixes_for_repo(
                 return True
             jira_key = await get_jira_project_key(git_url)
             if jira_key == "UNRESOLVED":
-                await mine_from_bugzilla(session, bz_result_dir, git_url)
+                await mine_from_bugzilla(bz_result_dir, git_url)
             else:
                 print(f"Mine repo bugfixes (Jira): {git_url!s}")
-                await mine_from_jira(session, jira_result_dir, git_url, jira_key)
+                await mine_from_jira(jira_result_dir, git_url, jira_key)
         return True
 
 
