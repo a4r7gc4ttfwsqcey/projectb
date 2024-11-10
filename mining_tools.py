@@ -303,6 +303,7 @@ async def get_jira_project_key(input: str) -> str:
         input = input.replace("hadoop ", "")
         input = input.replace(" extensions", "")
         input = input.replace(" sandbox", "")
+        input = input.replace(" jbig2", "")
         if input == "isis":
             input = "causeway"
         if input.startswith("sling"):
