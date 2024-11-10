@@ -5,6 +5,7 @@ from typing import Any
 
 import aiohttp
 from git import Commit, Repo
+from jira import JIRA
 from pydriller import Repository
 
 from analyze_tools import get_refactoring_commits
@@ -181,11 +182,15 @@ async def uses_github_issue_tracker_system(session: aiohttp.ClientSession, git_u
             await asyncio.sleep(3601)  # sleep 1 hour on rate limit
             return await uses_github_issue_tracker_system(session, git_url)
         raise Exception(f"unable to determine github repo issue system, http error {response.status}")
+    return True
 
 
 async def mine_from_github(session: aiohttp.ClientSession, result_dir: Path, git_url: str) -> bool:
     """Mine bug fixes from GitHub."""
     json_fn = Path(git_url).with_suffix(".json").name
+    if result_dir.joinpath(json_fn).exists():
+        print(f"Repo already mined: {json_fn.rsplit(".", maxsplit=1)[0]!s}")
+        return False
     result_json = result_dir.joinpath(json_fn)
     git_url = git_url.rsplit(".git")[0]
     parts = git_url.rstrip('/').split('/')
@@ -224,15 +229,75 @@ async def mine_from_github(session: aiohttp.ClientSession, result_dir: Path, git
     return True
 
 
-async def mine_from_jira(session: aiohttp.ClientSession, result_dir: Path, git_url: str) -> bool:
+async def mine_from_jira(session: aiohttp.ClientSession, result_dir: Path, git_url: str, key: str) -> bool:
     """Mine bug fixes from Jira."""
-    json_fn = Path(git_url).with_suffix(".json").name
-    result_json = result_dir.joinpath(json_fn)
+    txt_fn = Path(git_url).with_suffix(".txt").name
+    result_txt = result_dir.joinpath(txt_fn)
+    if result_txt.exists():
+        print(f"Repo already mined: {txt_fn.rsplit(".", maxsplit=1)[0]!s}")
+        return False
+    jira_result_json = result_dir.joinpath("jira_projects", f"{key}.json")
+    if jira_result_json.exists():
+        print(f"Jira project already mined: {key}")
+        result_txt.write_text('"' + str(jira_result_json) + '"')
+        return False
+    # Mine Jira issues
+    jira = JIRA("https://issues.apache.org/jira")
+    issues = jira.search_issues(f'project = {key}', maxResults=False, json_result=True)
+    jira_result_json.write_text(json.dumps(issues, indent=4))
     return True
 
 
+async def mine_from_bugzilla(session: aiohttp.ClientSession, result_dir: Path, git_url: str) -> bool:
+    """Mine bug fixes from Bugzilla."""
+    json_fn = Path(git_url).with_suffix(".json").name
+    result_json = result_dir.joinpath(json_fn)
+    """https://bz.apache.org/bugzilla/describecomponents.cgi?product=Ant
+    https://bz.apache.org/bugzilla/describecomponents.cgi?product=POI"""
+    return True
+
+
+async def get_jira_project_key(input: str) -> str:
+    try:
+        # cached in function attribute value
+        jprojects = get_jira_project_key.jprojects
+    except Exception:
+        # fetch only when required
+        jira = JIRA("https://issues.apache.org/jira/")
+        get_jira_project_key.jprojects = jira.projects()
+        jprojects = get_jira_project_key.jprojects
+    for jp in jprojects:
+        input = input.replace("-", " ")
+        input = input.replace("incubator ", "")
+        input = input.replace("logging ", "")
+        input = input.replace("hadoop ", "")
+        input = input.replace(" extensions", "")
+        input = input.replace(" sandbox", "")
+        if input == "isis":
+            input = "causeway"
+        if input.startswith("sling"):
+            input = "sling"
+        if input == jp.name.lower():
+            return jp.key
+        if input == jp.name.lower().replace("apache ", ""):
+            return jp.key
+        if input == jp.name.lower().replace(" 2", ""):
+            return jp.key
+        if input == jp.name.lower().replace("apache ", "").rsplit(" ", maxsplit=1)[0]:
+            return jp.key
+        if "fineract cn" in input and jp.name == "Fineract Cloud Native":
+            return jp.key
+        if "jackrabbit filevault" in input and jp.name == "Jackrabbit FileVault":
+            return jp.key
+        if "ofbiz " in input and jp.name == "OFBiz":
+            return jp.key
+        if input.split(" ", maxsplit=1)[0] == jp.name:
+            return jp.key
+    return "UNRESOLVED"
+
+
 async def mine_bugfixes_for_repo(
-    sem: asyncio.Semaphore, gh_result_dir: Path, jira_result_dir: Path, git_url: str
+    sem: asyncio.Semaphore, gh_result_dir: Path, bz_result_dir: Path, jira_result_dir: Path, git_url: str
 ) -> bool:
     """Mine bug fixes."""
     async with sem:
@@ -244,9 +309,13 @@ async def mine_bugfixes_for_repo(
             if await uses_github_issue_tracker_system(session, git_url):
                 print(f"Mine repo bugfixes (Github): {git_url!s}")
                 await mine_from_github(session, gh_result_dir, git_url)
+                return True
+            jira_key = await get_jira_project_key(git_url)
+            if jira_key == "UNRESOLVED":
+                await mine_from_bugzilla(session, bz_result_dir, git_url)
             else:
                 print(f"Mine repo bugfixes (Jira): {git_url!s}")
-                await mine_from_jira(session, jira_result_dir, git_url)
+                await mine_from_jira(session, jira_result_dir, git_url, jira_key)
         return True
 
 
@@ -254,11 +323,12 @@ async def mine_bugfixes(git_urls: list[str]) -> bool:
     """Mine bug fixes."""
     gh_result_dir = results_dir.joinpath("bugfixes-github")
     jira_result_dir = results_dir.joinpath("bugfixes-jira")
-    for directory in gh_result_dir, jira_result_dir:
+    bz_result_dir = results_dir.joinpath("bugfixes-bugzilla")
+    for directory in gh_result_dir, jira_result_dir, bz_result_dir, jira_result_dir / "jira_projects":
         directory.mkdir(parents=True, exist_ok=True)
     sem = asyncio.Semaphore(10)
     tasks = [
-        mine_bugfixes_for_repo(sem, gh_result_dir, jira_result_dir, git_url)
+        mine_bugfixes_for_repo(sem, gh_result_dir, bz_result_dir, jira_result_dir, git_url)
         for git_url in git_urls
     ]
     await asyncio.gather(*tasks)
