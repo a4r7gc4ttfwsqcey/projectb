@@ -249,6 +249,7 @@ async def mine_from_jira(session: aiohttp.ClientSession, result_dir: Path, git_u
     for issue in issues:
         json_data.append(issue.raw)
     jira_result_json.write_text(json.dumps(json_data, indent=4))
+    result_txt.write_text('"' + str(jira_result_json) + '"')
     return True
 
 
