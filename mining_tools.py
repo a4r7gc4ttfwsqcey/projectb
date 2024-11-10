@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 
 import aiohttp
+import bugzilla
 from git import Commit, Repo
 from jira import JIRA
 from pydriller import Repository
@@ -250,10 +251,25 @@ async def mine_from_jira(session: aiohttp.ClientSession, result_dir: Path, git_u
 
 async def mine_from_bugzilla(session: aiohttp.ClientSession, result_dir: Path, git_url: str) -> bool:
     """Mine bug fixes from Bugzilla."""
-    json_fn = Path(git_url).with_suffix(".json").name
-    result_json = result_dir.joinpath(json_fn)
     """https://bz.apache.org/bugzilla/describecomponents.cgi?product=Ant
     https://bz.apache.org/bugzilla/describecomponents.cgi?product=POI"""
+    json_fn = Path(git_url).with_suffix(".json").name
+    result_json = result_dir.joinpath(json_fn)
+    if result_json.exists():
+        print(f"Repo already mined: {json_fn.rsplit(".", maxsplit=1)[0]!s}")
+        return False
+    bz = bugzilla.Bugzilla("https://bz.apache.org/bugzilla/")
+    if "ant" in git_url:
+        project_name = "Ant"
+    else:
+        project_name = Path(git_url).with_suffix("").name.upper()
+    q = {'product': project_name}
+    bugs = bz.query(q)
+    json_data = []
+    for bug in bugs:
+        json_data.append(bug.get_raw_data())
+    result_json.write_text(json.dumps(json_data, indent=4))
+    print(f"Bugzilla bugs mined: {project_name} {result_json}")
     return True
 
 
