@@ -129,11 +129,16 @@ async def mine_effort_for_repo(sem: asyncio.Semaphore, tloc_result_dir: Path, re
         developer_dict = {}
         print(f"Mine effort TLOC: {repo!s}")
         json_fn = Path(repo.working_dir).with_suffix(".json").name
+        tloc_result_dir = tloc_result_dir / Path(repo.working_dir).name
         if tloc_result_dir.exists():
             print(f"Repo TLOC already mined: {tloc_result_dir!s}")
             return False
+        tloc_result_dir.mkdir(parents=True)
         refactoringminer_json = results_dir.joinpath("rminer-outputs", json_fn)
-        for commit_sha in await get_refactoring_commits(refactoringminer_json):
+        refactoring_commits = await get_refactoring_commits(refactoringminer_json)
+        if not refactoring_commits:
+            print(f"Repo contains no refactoring commits: {tloc_result_dir.name}")
+        for commit_sha in refactoring_commits:
             developer = repo.commit(commit_sha).author.name
             if not developer:
                 print(f"Empty developer name")
