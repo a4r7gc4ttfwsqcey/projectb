@@ -18,16 +18,23 @@ async def mine_repo_rf_activity(sem: asyncio.Semaphore, result_dir: Path, logs_d
         project_path = Path(project_repo.working_dir)
         log_path = logs_dir.joinpath(project_path.with_suffix(".txt").name)
         json_output_path = result_dir.joinpath(project_path.with_suffix(".json").name)
-        if not json_output_path.exists():
-            # CLI options:
-            # -a for analysing all commits
-            # -json for output path
-            mine_args = rf_cmd + ["-a", str(project_path), "-json", str(json_output_path)]
-            await run_subprocess(mine_args, cwd=rf_miner_dir, log_path=log_path)
+        if json_output_path.exists():
+            if log_path.exists():
+                if "Analyzed" in log_path.read_text():
+                    print(f"Repository already mined: {json_output_path!s}")
+                    return json_output_path
+                log_path.unlink()
+            print(f"Re-trying failed job: {project_repo!s}")
+            json_output_path.unlink()
+        # CLI options:
+        # -a for analysing all commits
+        # -json for output path
+        mine_args = rf_cmd + ["-a", str(project_path), "-json", str(json_output_path)]
+        await run_subprocess(mine_args, cwd=rf_miner_dir, log_path=log_path)
+        if "Analyzed" in log_path.read_text():
             print(f"Mining completed, results path: {json_output_path!s}")
             return json_output_path
-        print(f"Repository already mined: {json_output_path!s}")
-        return json_output_path
+        print(f"Mining failed, check log: {log_path!s}")
 
 
 async def mine_refactoring_activity(project_repos: list[Repo]) -> list[Path]:
@@ -91,7 +98,7 @@ async def mine_diffs(project_repos: list[Repo]) -> bool:
     """Mine diffs with pydriller."""
     diff_result_dir = results_dir.joinpath("diff-outputs")
     diff_result_dir.mkdir(parents=True, exist_ok=True)
-    sem = asyncio.Semaphore(16)
+    sem = asyncio.Semaphore(100)
     tasks = [get_commit_diff_data_from_repo(sem, diff_result_dir, repo) for repo in project_repos]
     await asyncio.gather(*tasks)
     return True
@@ -151,7 +158,7 @@ async def mine_effort(project_repos: list[Repo]) -> bool:
     """Mine effort with scc"""
     tloc_result_dir = results_dir.joinpath("tloc-outputs")
     tloc_result_dir.mkdir(parents=True, exist_ok=True)
-    sem = asyncio.Semaphore(16)
+    sem = asyncio.Semaphore(100)
     tasks = [mine_effort_for_repo(sem, tloc_result_dir, repo) for repo in project_repos]
     await asyncio.gather(*tasks)
     return True
