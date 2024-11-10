@@ -266,7 +266,7 @@ async def mine_from_bugzilla(result_dir: Path, git_url: str) -> bool:
     if result_json.exists():
         print(f"Repo already mined: {json_fn.rsplit(".", maxsplit=1)[0]!s}")
         return False
-    bz = bugzilla.Bugzilla("https://bz.apache.org/bugzilla/xmlrpc.cgi")
+    bz = bugzilla.Bugzilla("https://bz.apache.org/bugzilla/rest.cgi/", force_rest=True)
     if "ant" in git_url:
         project_name = "Ant"
     else:
