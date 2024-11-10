@@ -11,6 +11,7 @@ from pydriller import Repository
 
 from analyze_tools import get_refactoring_commits
 from constants import *
+from csv_tools import write_table_to_csv
 from subprocess_tools import run_subprocess
 
 async def mine_repo_rf_activity(sem: asyncio.Semaphore, result_dir: Path, logs_dir: Path, project_repo: Repo) -> Path:
@@ -125,13 +126,11 @@ async def get_commit_loc(repo: Repo, commit: Commit) -> int:
 
 async def mine_effort_for_repo(sem: asyncio.Semaphore, tloc_result_dir: Path, repo: Repo) -> bool:
     async with sem:
-        developer_tloc: dict[str, int] = {}
-        ref_commit_tloc: dict[str, int] = {}
+        developer_dict = {}
         print(f"Mine effort TLOC: {repo!s}")
         json_fn = Path(repo.working_dir).with_suffix(".json").name
-        tloc_result_json = tloc_result_dir.joinpath(json_fn)
-        if tloc_result_json.exists():
-            print(f"Repo diff already mined: {tloc_result_json!s}")
+        if tloc_result_dir.exists():
+            print(f"Repo TLOC already mined: {tloc_result_dir!s}")
             return False
         refactoringminer_json = results_dir.joinpath("rminer-outputs", json_fn)
         for commit_sha in await get_refactoring_commits(refactoringminer_json):
@@ -139,8 +138,12 @@ async def mine_effort_for_repo(sem: asyncio.Semaphore, tloc_result_dir: Path, re
             if not developer:
                 print(f"Empty developer name")
                 developer = "Unknown"
-            if developer not in developer_tloc:
-                developer_tloc[developer] = 0
+            if developer not in developer_dict:
+                developer_dict[developer] = {
+                    "refactoring_hash": [],
+                    "previous_commit_hash": [],
+                    "TLOC": [],
+                }
             loc = await get_commit_loc(repo, repo.commit(commit_sha))
             try:
                 previous_commit = repo.commit(commit_sha).parents[0]
@@ -149,10 +152,13 @@ async def mine_effort_for_repo(sem: asyncio.Semaphore, tloc_result_dir: Path, re
                 print(f"no previous commit for {commit_sha}")
                 continue
             tloc = abs(loc - prev_commit_loc)
-            developer_tloc[developer] += tloc
-            ref_commit_tloc[commit_sha] = tloc
-        tloc_result_json.write_text(json.dumps({"developers": developer_tloc, "refactor_commits": ref_commit_tloc}, indent=4))
-        print(f"Effort TLOC mined: {tloc_result_json!s}")
+            developer_dict[developer]["refactoring_hash"].append(commit_sha)
+            developer_dict[developer]["previous_commit_hash"].append(previous_commit.hexsha)
+            developer_dict[developer]["TLOC"].append(tloc)
+        for dev in developer_dict:
+            tloc_result_csv = tloc_result_dir.joinpath(dev).with_suffix(".csv")
+            write_table_to_csv(tloc_result_csv, developer_dict[dev])
+        print(f"Effort TLOC mined: {tloc_result_dir!s}")
         return True
 
 
