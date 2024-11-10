@@ -244,12 +244,15 @@ async def mine_from_jira(session: aiohttp.ClientSession, result_dir: Path, git_u
         return False
     # Mine Jira issues
     jira = JIRA("https://issues.apache.org/jira")
-    issues = jira.search_issues(f'project = {key}', maxResults=False, json_result=True)
+    json_data = []
+    issues = jira.search_issues(f'project = {key}', maxResults=False)
+    for issue in issues:
+        json_data.append(issue.raw)
     jira_result_json.write_text(json.dumps(issues, indent=4))
     return True
 
 
-async def mine_from_bugzilla(session: aiohttp.ClientSession, result_dir: Path, git_url: str) -> bool:
+async def mine_from_bugzilla(result_dir: Path, git_url: str) -> bool:
     """Mine bug fixes from Bugzilla."""
     """https://bz.apache.org/bugzilla/describecomponents.cgi?product=Ant
     https://bz.apache.org/bugzilla/describecomponents.cgi?product=POI"""
@@ -258,7 +261,7 @@ async def mine_from_bugzilla(session: aiohttp.ClientSession, result_dir: Path, g
     if result_json.exists():
         print(f"Repo already mined: {json_fn.rsplit(".", maxsplit=1)[0]!s}")
         return False
-    bz = bugzilla.Bugzilla("https://bz.apache.org/bugzilla/")
+    bz = bugzilla.Bugzilla("https://bz.apache.org/bugzilla/xmlrpc.cgi")
     if "ant" in git_url:
         project_name = "Ant"
     else:
@@ -274,6 +277,7 @@ async def mine_from_bugzilla(session: aiohttp.ClientSession, result_dir: Path, g
 
 
 async def get_jira_project_key(input: str) -> str:
+    input = Path(input).with_suffix("").name
     try:
         # cached in function attribute value
         jprojects = get_jira_project_key.jprojects
