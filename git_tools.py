@@ -7,6 +7,12 @@ async def projects_to_git_urls(projects: set[str]) -> set[str]:
     """Transform apache project names to GitHub repository links."""
     project_urls: str[str] = set()
     for p in projects:
+        if "fineract" in p:
+            print("Ignore project fineract")
+            continue
+        if "plc4x" in p:
+            print("Ignore project plc4x")
+            continue
         if p.startswith("apache_"):
             p = p.split("_", maxsplit=1)[1]
         if p.startswith("apache-"):
