@@ -1,5 +1,6 @@
 import asyncio
 import json
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -109,10 +110,10 @@ async def mine_diffs(project_repos: list[Repo]) -> bool:
 
 async def get_commit_loc(repo: Repo, commit: Commit) -> int:
     """Get loc for commit from scc"""
-    try:
-        current_branch = repo.active_branch.name
-    except:
-        current_branch = "origin/HEAD"
+    # try:
+    #     current_branch = repo.active_branch.name
+    # except:
+    #     current_branch = "origin/HEAD"
     repo.git.checkout(commit)
     output = await run_subprocess([str(scc_exec), "--no-complexity", "--no-cocomo"], cwd=repo.working_dir, quiet=True)
     total_loc: int = 0
@@ -123,7 +124,7 @@ async def get_commit_loc(repo: Repo, commit: Commit) -> int:
             if language in TIOBE_PROGRAMMING_LANGUAGES_FOR_SCC:
                 loc = int(parts[2].replace(",", ""))
                 total_loc += loc
-    repo.git.checkout(current_branch)
+    #repo.git.checkout(current_branch)
     return total_loc
 
 
@@ -131,12 +132,17 @@ async def mine_effort_for_repo(sem: asyncio.Semaphore, tloc_result_dir: Path, re
     async with sem:
         developer_dict = {}
         print(f"Mine effort TLOC: {repo!s}")
+        repo.git.checkout("origin/HEAD")
         json_fn = Path(repo.working_dir).with_suffix(".json").name
         tloc_result_dir = tloc_result_dir / Path(repo.working_dir).name
+        tloc_result_dir_temp = tloc_result_dir.with_suffix(".UNFINISHED")
+        if tloc_result_dir_temp.exists():
+            print(f"Remove incomplete: {tloc_result_dir_temp!s}")
+            shutil.rmtree(tloc_result_dir_temp)
         if tloc_result_dir.exists():
             print(f"Repo TLOC already mined: {tloc_result_dir!s}")
             return False
-        tloc_result_dir.mkdir(parents=True)
+        tloc_result_dir_temp.mkdir(parents=True)
         refactoringminer_json = results_dir.joinpath("rminer-outputs", json_fn)
         refactoring_commits = await get_refactoring_commits(refactoringminer_json)
         if not refactoring_commits:
@@ -164,8 +170,9 @@ async def mine_effort_for_repo(sem: asyncio.Semaphore, tloc_result_dir: Path, re
             developer_dict[developer]["previous_commit_hash"].append(previous_commit.hexsha)
             developer_dict[developer]["TLOC"].append(tloc)
         for dev in developer_dict:
-            tloc_result_csv = tloc_result_dir.joinpath(dev).with_suffix(".csv")
+            tloc_result_csv = tloc_result_dir_temp.joinpath(dev).with_suffix(".csv")
             await write_table_to_csv(tloc_result_csv, developer_dict[dev])
+        tloc_result_dir_temp.rename(tloc_result_dir)
         print(f"Effort TLOC mined: {tloc_result_dir!s}")
         return True
 
