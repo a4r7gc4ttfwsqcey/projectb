@@ -114,7 +114,9 @@ async def get_commit_loc(repo: Repo, commit: Commit) -> int:
     #     current_branch = repo.active_branch.name
     # except:
     #     current_branch = "origin/HEAD"
-    repo.git.checkout(commit)
+    repo.git.reset("--hard")
+    repo.git.clean("-fdx")
+    repo.git.checkout("--force", commit)
     output = await run_subprocess([str(scc_exec), "--no-complexity", "--no-cocomo"], cwd=repo.working_dir, quiet=True)
     total_loc: int = 0
     for line in output.splitlines():
