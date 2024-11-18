@@ -22,12 +22,6 @@ async def projects_to_git_urls(projects: set[str]) -> set[str]:
                 p = "incubator-" + p
         p_url = f"https://github.com/apache/{p}.git"
         file_content += f"{p},{p_url}\n"
-        if "fineract" in p:
-            print("Ignore project fineract")
-            continue
-        if "plc4x" in p:
-            print("Ignore project plc4x")
-            continue
         project_urls.add(p_url)
     results_dir.joinpath("github_repos.csv").write_text(file_content)
     return project_urls

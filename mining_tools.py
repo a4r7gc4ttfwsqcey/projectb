@@ -15,7 +15,67 @@ from constants import *
 from csv_tools import write_table_to_csv
 from subprocess_tools import run_subprocess
 
+
+def split_commit_history(repo: Repo, count: int) -> list[tuple[str, str]]:
+    # Get the list of all commits
+    commits = list(repo.iter_commits('HEAD', reverse=True))
+    # Determine the size of each segment
+    split_size = len(commits) // count
+    ranges = []
+    for i in range(count):
+        start_idx = i * split_size
+        end_idx = start_idx + split_size if i < count - 1 else len(commits)
+        segment = commits[start_idx:end_idx]
+        if segment:
+            ranges.append((segment[0].hexsha, segment[-1].hexsha))
+    return ranges
+
+
+async def mine_repo_rf_activity_multipart(sem: asyncio.Semaphore, result_dir: Path, logs_dir: Path, project_repo: Repo) -> Path:
+    async with sem:
+        rf_cmd = [str(rf_miner_exec)]
+        print(f"Mine project repository: {project_repo!s}")
+        project_path = Path(project_repo.working_dir)
+        log_path = logs_dir.joinpath(project_path.with_suffix(".txt").name)
+        json_output_path = result_dir.joinpath(project_path.with_suffix(".json").name)
+        if json_output_path.exists():
+            if log_path.exists():
+                if "Analyzed" in log_path.read_text():
+                    print(f"Repository already mined: {json_output_path!s}")
+                    return json_output_path
+                log_path.unlink()
+            print(f"Re-trying failed job: {project_repo!s}")
+            json_output_path.unlink()
+        # 8 part mining
+        ranges = split_commit_history(project_repo, 8)
+        # CLI options:
+        # -bc for analysing commit range
+        # -json for output path
+        count = 0
+        parts = []
+        for start, end in ranges:
+            mine_args = rf_cmd + ["-bc", str(project_path), start, end, "-json", str(json_output_path.with_suffix(f".json.part{count}"))]
+            await run_subprocess(mine_args, cwd=rf_miner_dir, log_path=log_path.with_suffix(f".txt.part{count}"))
+            if "Analyzed" in log_path.with_suffix(f".txt.part{count}").read_text():
+                print(f"Mining part{count} completed")
+                parts.append(json_output_path.with_suffix(f".json.part{count}"))
+            count += 1
+        if len(parts) != 8:
+            print(f"Mining failed, check logs: {log_path.with_suffix(".txt.part*")!s}")
+        final_json_obj = []
+        for part in parts:
+            for obj in json.loads(part.read_text())["commits"]:
+                final_json_obj += obj
+        json_output_path.write_text(json.dumps({"commits": final_json_obj}, indent=4))
+        log_path.write_text("Analyzed")
+        print(f"Mining completed, results path: {json_output_path!s}")
+        return json_output_path
+
+
 async def mine_repo_rf_activity(sem: asyncio.Semaphore, result_dir: Path, logs_dir: Path, project_repo: Repo) -> Path:
+    if "fineract" in str(project_repo.working_dir) or "plc4x" in str(project_repo.working_dir):
+        print(f"Multipart mining: {project_repo}")
+        return await mine_repo_rf_activity_multipart(sem, result_dir, logs_dir, project_repo)
     async with sem:
         rf_cmd = [str(rf_miner_exec)]
         print(f"Mine project repository: {project_repo!s}")
