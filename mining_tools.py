@@ -76,7 +76,7 @@ async def mine_repo_rf_activity_multipart(sem: asyncio.Semaphore, result_dir: Pa
         final_json_obj = []
         for part in parts:
             for obj in json.loads(part.read_text())["commits"]:
-                final_json_obj += obj
+                final_json_obj.append(obj)
         json_output_path.write_text(json.dumps({"commits": final_json_obj}, indent=4))
         log_path.write_text("Analyzed")
         print(f"Mining completed, results path: {json_output_path!s}")
