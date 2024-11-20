@@ -47,12 +47,23 @@ async def mine_repo_rf_activity_multipart(sem: asyncio.Semaphore, result_dir: Pa
             print(f"Re-trying failed job: {project_repo!s}")
             json_output_path.unlink()
         # 8 part mining
-        ranges = split_commit_history(project_repo, 8)
+        if "fineract" in str(project_repo.working_dir):
+            # Predefined ranges to work around heap size issue with the commits
+            range_count = 2
+            commits = list(project_repo.iter_commits('HEAD', reverse=True))
+            ranges = [
+                (commits[0].hexsha, "22b10d933b4eedbdc6a0f99fa23451e4f7870f6d",),
+                ("2a445a5862a432dcfb4e49559c3f717ad4d5f26a", commits[-1].hexsha,),
+            ]
+        else:
+            range_count = 8
+            ranges = split_commit_history(project_repo, range_count)
         # CLI options:
         # -bc for analysing commit range
         # -json for output path
         count = 0
         parts = []
+
         for start, end in ranges:
             mine_args = rf_cmd + ["-bc", str(project_path), start, end, "-json", str(json_output_path.with_suffix(f".json.part{count}"))]
             await run_subprocess(mine_args, cwd=rf_miner_dir, log_path=log_path.with_suffix(f".txt.part{count}"))
@@ -60,7 +71,7 @@ async def mine_repo_rf_activity_multipart(sem: asyncio.Semaphore, result_dir: Pa
                 print(f"Mining part{count} completed")
                 parts.append(json_output_path.with_suffix(f".json.part{count}"))
             count += 1
-        if len(parts) != 8:
+        if len(parts) != range_count:
             print(f"Mining failed, check logs: {log_path.with_suffix(".txt.part*")!s}")
         final_json_obj = []
         for part in parts:
