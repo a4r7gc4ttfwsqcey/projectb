@@ -55,6 +55,14 @@ async def mine_repo_rf_activity_multipart(sem: asyncio.Semaphore, result_dir: Pa
                 (commits[0].hexsha, "22b10d933b4eedbdc6a0f99fa23451e4f7870f6d",),
                 ("2a445a5862a432dcfb4e49559c3f717ad4d5f26a", commits[-1].hexsha,),
             ]
+        if "plc4x" in str(project_repo.working_dir):
+            # Predefined ranges to work around miner hang issue with the commits
+            range_count = 2
+            commits = list(project_repo.iter_commits('HEAD', reverse=True))
+            ranges = [
+                (commits[0].hexsha, "deb4a19433441de8a92dd8a223106e88996bce6a",),
+                ("7ed0a80f6dbbf02d3de94751d27ae1068f6c611a", commits[-1].hexsha,),
+            ]
         else:
             range_count = 8
             ranges = split_commit_history(project_repo, range_count)
