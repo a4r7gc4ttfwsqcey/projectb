@@ -61,7 +61,8 @@ async def mine_repo_rf_activity_multipart(sem: asyncio.Semaphore, result_dir: Pa
             commits = list(project_repo.iter_commits('HEAD', reverse=True))
             ranges = [
                 (commits[0].hexsha, "deb4a19433441de8a92dd8a223106e88996bce6a",),
-                ("7ed0a80f6dbbf02d3de94751d27ae1068f6c611a", commits[-1].hexsha,),
+                ("7ed0a80f6dbbf02d3de94751d27ae1068f6c611a", "673de2c62b5af77d13b72ffe9e4f3dc2ec7a34bd",),
+                ("2663b5d08372039b33a58c15cebd5bc111f7732e", commits[-1].hexsha,),
             ]
         else:
             range_count = 8
