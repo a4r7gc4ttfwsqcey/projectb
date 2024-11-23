@@ -62,7 +62,8 @@ async def mine_repo_rf_activity_multipart(sem: asyncio.Semaphore, result_dir: Pa
             ranges = [
                 (commits[0].hexsha, "deb4a19433441de8a92dd8a223106e88996bce6a",),
                 ("7ed0a80f6dbbf02d3de94751d27ae1068f6c611a", "673de2c62b5af77d13b72ffe9e4f3dc2ec7a34bd",),
-                ("2663b5d08372039b33a58c15cebd5bc111f7732e", commits[-1].hexsha,),
+                ("9413b9658b074b32411a27b8b502ba45d3d58cce", "2b64eb5693f81b3a6e912dad178f1b199530a41c",),
+                ("a7310e34ded164079d954753af18490677aaa975", commits[-1].hexsha,),
             ]
         else:
             range_count = 8
@@ -74,6 +75,11 @@ async def mine_repo_rf_activity_multipart(sem: asyncio.Semaphore, result_dir: Pa
         parts = []
 
         for start, end in ranges:
+            if log_path.with_suffix(f".txt.part{count}").exists():
+                if "Analyzed" in log_path.with_suffix(f".txt.part{count}").read_text():
+                    parts.append(json_output_path.with_suffix(f".json.part{count}"))
+                    count += 1
+                    continue
             mine_args = rf_cmd + ["-bc", str(project_path), start, end, "-json", str(json_output_path.with_suffix(f".json.part{count}"))]
             await run_subprocess(mine_args, cwd=rf_miner_dir, log_path=log_path.with_suffix(f".txt.part{count}"))
             if "Analyzed" in log_path.with_suffix(f".txt.part{count}").read_text():
